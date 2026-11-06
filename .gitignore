@@ -1,0 +1,9 @@
+node_modules/
+public/app.js
+public/effects-worker.js
+.wrangler/
+.dev.vars
+collector/out/
+__pycache__/
+*.pyc
+.DS_Store

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <title>Video call</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='2' y='6' width='13' height='12' rx='3' fill='%232dd4bf'/><path d='M15 11l7-3.5v9L15 13z' fill='%232dd4bf'/></svg>">
+  <style>
+    [hidden] { display: none !important; }
+    :root { --bg: #0b1220; --surface: #121a2b; --raised: #1e293b; --line: #334155; --ink: #e2e8f0; --ink-2: #94a3b8;
+      --accent: #2dd4bf; --accent-ink: #042f2e; --danger: #e11d48; --warn: #f59e0b; --radius: 14px;
+      --font: "Inter", system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans", sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--bg); color: var(--ink); font-family: var(--font); display: flex; flex-direction: column; overflow: hidden; }
+    button, input, select { font: inherit; color: inherit; }
+    .ic { width: 22px; height: 22px; flex: none; }
+
+    /* ---------- lobby: one card ---------- */
+    .lobby { flex: 1; display: grid; place-items: center; padding: 20px 16px; overflow-y: auto; }
+    .card { width: min(560px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px; display: grid; gap: 14px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+    .card h1 { margin: 0; font-size: 18px; font-weight: 650; display: flex; align-items: center; gap: 10px; }
+    .card h1 .room { color: var(--accent); font-weight: 600; }
+    .preview { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #000; }
+    .preview video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+    .preview .off { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); font-size: 15px; }
+    .preview .pv-ctl { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; }
+    .preview .pv-ctl .sq { width: 44px; height: 44px; }
+    .field { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+    .field input, .field select { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 15px; color: var(--ink); }
+    .field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+    .selects { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .notice { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.4); color: #fcd34d; font-size: 13px; }
+    .primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 13px 20px; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .primary:disabled { opacity: .6; cursor: default; }
+    .primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+    /* ---------- in the call ---------- */
+    .topbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; font-size: 14px; color: var(--ink-2); }
+    .topbar .room { color: var(--ink); font-weight: 600; }
+    .topbar .count { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: var(--raised); border-radius: 999px; padding: 4px 10px; color: var(--ink); }
+    #rec { display: inline-flex; align-items: center; gap: 6px; color: #fda4af; font-weight: 600; }
+    #rec::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--danger); animation: blink 1.6s ease-in-out infinite; }
+    #rec.paused { color: #fcd34d; } #rec.paused::before { background: var(--warn); animation: none; }
+    @keyframes blink { 50% { opacity: .3; } }
+
+    #stage { flex: 1; position: relative; padding: 0 16px; min-height: 0; display: grid; gap: 10px; }
+    #stage.share { grid-template-columns: minmax(0, 1fr) clamp(220px, 28vw, 440px); grid-auto-rows: min-content; align-content: start; }
+    #stage.share .tile:not(.screen) { aspect-ratio: 16 / 9; }
+    #stage.share .tile.screen { grid-row: 1 / span 3; height: 100%; }
+    .tile { position: relative; background: var(--raised); border-radius: var(--radius); overflow: hidden; min-height: 0; outline: 3px solid transparent; outline-offset: -3px; transition: outline-color .2s; }
+    .tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .tile.screen video { object-fit: contain; background: #000; }
+    .tile.speaking { outline-color: var(--accent); }
+    .tile .name { position: absolute; left: 10px; bottom: 10px; font-size: 13px; display: flex; align-items: center; gap: 6px; background: rgba(11,18,32,.75); padding: 4px 10px; border-radius: 8px; }
+    .tile .name .ic { width: 16px; height: 16px; color: #fda4af; }
+    .tile .avatar { position: absolute; inset: 0; display: grid; place-items: center; container-type: size; }
+    .tile .avatar span { width: clamp(44px, 24cqmin, 104px); aspect-ratio: 1; border-radius: 22%; display: grid; place-items: center; color: #fff; font-size: clamp(18px, 10cqmin, 42px); font-weight: 650; }
+    #waiting { position: absolute; inset: 0 16px; display: grid; place-items: center; color: var(--ink-2); font-size: 15px; }
+    /* yourself: a small tile in the top-right corner */
+    #me { position: absolute; right: 28px; top: 12px; width: clamp(140px, 20vw, 260px); aspect-ratio: 16 / 9; z-index: 3; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+    #me video { transform: scaleX(-1); }
+    #stage.share #me { position: relative; right: auto; top: auto; width: auto; grid-column: 2; }
+    #stage.me-big:not(.share) #me { position: relative; right: auto; top: auto; width: auto; aspect-ratio: auto; box-shadow: none; z-index: 1; }
+    #stage.me-big:not(.share) .tile:not(#me) { position: absolute; right: 28px; top: 12px; width: clamp(140px, 20vw, 260px); aspect-ratio: 16 / 9; z-index: 3; }
+    .tile .tools { position: absolute; top: 8px; left: 8px; z-index: 4; display: flex; gap: 6px; opacity: 0; transition: opacity .15s; }
+    .tile:hover .tools, .tile.show-tools .tools, .tile:focus-within .tools { opacity: 1; }
+    .tools button { width: 34px; height: 34px; border-radius: 10px; border: 0; background: rgba(11,18,32,.75); display: grid; place-items: center; cursor: pointer; }
+    .tools .ic { width: 18px; height: 18px; }
+    .tile:fullscreen { border-radius: 0; background: #000; } .tile:fullscreen video { object-fit: contain; }
+    .tile .handup { position: absolute; right: 10px; bottom: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: var(--warn); color: #1c1917; font-size: 13px; font-weight: 600; }
+    .tile .handup .ic { width: 18px; height: 18px; }
+    .tile.hand-raised { outline-color: var(--warn); }
+    /* your own share */
+    #myscreen { background: #000; }
+    #myscreen .present-bar { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 12px; background: rgba(11,18,32,.88); border: 1px solid var(--line); border-radius: 12px; font-size: 13px; z-index: 2; }
+    #myscreen .pb-zoom { display: inline-flex; align-items: center; gap: 2px; background: var(--raised); border-radius: 8px; }
+    #myscreen .pb-zoom button { width: 28px; height: 28px; border: 0; background: none; cursor: pointer; font-size: 16px; }
+    #myscreen .pb-lvl { min-width: 44px; text-align: center; }
+    #myscreen .pb-stop { border: 0; border-radius: 8px; padding: 6px 12px; background: var(--danger); color: #fff; font-weight: 600; cursor: pointer; }
+    #myscreen .pb-hint { position: absolute; left: 12px; bottom: 12px; padding: 6px 12px; border-radius: 8px; background: rgba(11,18,32,.88); font-size: 13px; z-index: 2; pointer-events: none; transition: opacity 1s 4s; }
+    #myscreen .pb-hint.fade { opacity: 0; }
+    #myscreen.tab video { cursor: ns-resize; }
+    #myscreen .present-note { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--ink-2); padding: 24px; text-align: center; }
+    #myscreen .present-note .ic { width: 44px; height: 44px; color: var(--accent); }
+
+    /* ---------- the dock: square buttons with a label under each ---------- */
+    .dock { display: flex; justify-content: center; align-items: stretch; gap: 6px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); flex-wrap: wrap; }
+    .dock .sep { width: 1px; background: var(--line); margin: 6px 4px; }
+    .tb { min-width: 64px; display: grid; justify-items: center; gap: 4px; padding: 8px 10px 6px; border: 0; border-radius: 12px; background: transparent; cursor: pointer; position: relative; color: var(--ink); }
+    .tb:hover { background: var(--raised); }
+    .tb .lbl { font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+    .tb.alert { color: #fda4af; } .tb.alert .lbl { color: #fda4af; }
+    .tb.active { background: rgba(45,212,191,.14); color: var(--accent); } .tb.active .lbl { color: var(--accent); }
+    .tb.leave { background: var(--danger); color: #fff; padding-inline: 16px; } .tb.leave .lbl { color: #fff; } .tb.leave:hover { filter: brightness(1.1); }
+    .tb.unread::after { content: ""; position: absolute; top: 6px; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .sq { width: 48px; height: 48px; border-radius: 12px; border: 0; background: rgba(11,18,32,.7); display: grid; place-items: center; cursor: pointer; color: #fff; }
+    .sq.alert { background: var(--danger); } .sq.active { background: var(--accent); color: var(--accent-ink); }
+    #b-mic, #p-mic { box-shadow: inset 0 -3px 0 0 rgba(45,212,191, calc(var(--lvl, 0) * 1)); }
+    @media (max-width: 640px) { .tb { min-width: 52px; padding: 8px 6px 6px; } .tb .lbl { display: none; } .dock .sep { display: none; } #me { width: 32vw; right: 20px; } }
+
+    .popover { position: fixed; z-index: 20; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 12px 32px rgba(0,0,0,.45); }
+    #reactions { display: flex; gap: 2px; } #reactions button { width: 44px; height: 44px; border: 0; background: none; border-radius: 10px; font-size: 24px; cursor: pointer; }
+    #reactions button:hover { background: var(--raised); }
+    #more { display: grid; min-width: 230px; } #more button { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 0; background: none; border-radius: 10px; cursor: pointer; text-align: left; font-size: 14px; }
+    #more button:hover { background: var(--raised); }
+    #floaters { position: fixed; right: 24px; bottom: 100px; width: 200px; height: 55vh; pointer-events: none; z-index: 8; overflow: hidden; }
+    .floater { position: absolute; bottom: 0; display: grid; justify-items: center; gap: 4px; animation: up 3.6s ease-out forwards; }
+    .floater .e { font-size: 36px; } .floater .n { font-size: 11px; background: rgba(11,18,32,.85); padding: 2px 8px; border-radius: 6px; }
+    @keyframes up { 0% { transform: translateY(20px); opacity: 0; } 10% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(-50vh); opacity: 0; } }
+
+    /* ---------- chat: a panel on the left ---------- */
+    #chat { position: fixed; left: 16px; top: 52px; bottom: 96px; width: min(340px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: flex; flex-direction: column; z-index: 6; }
+    #chat header { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px 8px 16px; font-weight: 650; }
+    #chat header button { width: 34px; height: 34px; border: 0; background: none; border-radius: 10px; cursor: pointer; display: grid; place-items: center; }
+    #chat .note { margin: 0 16px 8px; font-size: 12px; color: var(--ink-2); }
+    #chat-list { list-style: none; margin: 0; padding: 4px 16px; flex: 1; overflow-y: auto; display: grid; align-content: start; gap: 10px; }
+    #chat-list li { background: var(--raised); border-radius: 12px; padding: 8px 12px; max-width: 92%; }
+    #chat-list li.mine { justify-self: end; background: rgba(45,212,191,.14); }
+    #chat-list .who { display: flex; gap: 8px; font-size: 12px; } #chat-list time { color: var(--ink-2); }
+    #chat-list .text { font-size: 14px; margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #chat-form { display: flex; gap: 6px; margin: 12px; }
+    #chat-input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    #chat-send { width: 44px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; cursor: pointer; }
+    #chat-send:disabled { opacity: .4; cursor: default; }
+    body.chat-open #stage { margin-left: min(356px, calc(100vw - 16px)); }
+    @media (max-width: 760px) { #chat { left: 8px; right: 8px; width: auto; } body.chat-open #stage { margin-left: 0; } }
+
+    dialog { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 18px; padding: 20px; width: min(420px, calc(100vw - 32px)); }
+    dialog::backdrop { background: rgba(0,0,0,.55); }
+    dialog h2 { margin: 0 0 12px; font-size: 17px; } dialog .field { margin-bottom: 10px; } dialog form { text-align: right; }
+
+    #toast { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 30; max-width: min(560px, calc(100% - 32px)); background: var(--raised); border: 1px solid var(--line); padding: 10px 14px; border-radius: 12px; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+    .ended { flex: 1; display: grid; place-content: center; justify-items: center; gap: 16px; text-align: center; }
+    .ended h2 { margin: 0; font-weight: 600; }
+    body.pre .incall, body.pre .endview, body.incall .lobbyview, body.incall .endview, body.over .lobbyview, body.over .incall { display: none !important; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body class="pre">
+  <div id="toast" role="status" hidden></div>
+
+  <!-- before joining -->
+  <main class="lobby lobbyview">
+    <form class="card" id="lobby-form">
+      <h1>Video call <span class="room" data-room></span></h1>
+      <div class="preview">
+        <video id="preview" autoplay muted playsinline></video>
+        <div class="off" id="preview-off" hidden>Camera off</div>
+        <div class="pv-ctl">
+          <button type="button" class="sq" id="p-mic"></button>
+          <button type="button" class="sq" id="p-cam"></button>
+          <button type="button" class="sq" id="p-blur"></button>
+        </div>
+      </div>
+      <p class="notice" id="rec-notice" hidden>This room records calls (audio and shared screens) while two or more people are in it. By joining you agree to be recorded.</p>
+      <label class="field">Your name<input id="name" maxlength="40" autocomplete="name" required></label>
+      <label class="field" id="key-row">Room key<input id="key" type="password" autocomplete="off"></label>
+      <div class="selects">
+        <label class="field">Microphone<select data-kind="audioinput"></select></label>
+        <label class="field">Speaker<select data-kind="audiooutput"></select></label>
+        <label class="field">Camera<select data-kind="videoinput"></select></label>
+      </div>
+      <p id="presence" hidden></p>
+      <button class="primary" id="join" type="submit">Join call</button>
+    </form>
+  </main>
+
+  <!-- in the call -->
+  <header class="topbar incall"><span class="room" data-room></span><span id="clock"></span><span id="rec" hidden><span></span></span>
+    <span class="count" title="People in the call"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="width:16px;height:16px"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.5M17.5 19a5.5 5.5 0 0 0-2-4.3"/></svg><span id="count">1</span></span></header>
+  <main id="stage" class="incall">
+    <div id="waiting">Waiting for others to join</div>
+    <div class="tile" id="me"><div class="avatar" id="me-avatar" hidden><span style="background:#0f766e">·</span></div><span class="name" id="me-name"></span></div>
+  </main>
+  <nav class="dock incall" aria-label="Call controls">
+    <button class="tb" id="b-mic"><span class="lbl"></span></button>
+    <button class="tb" id="b-cam"><span class="lbl"></span></button>
+    <button class="tb" id="b-share"><span class="lbl"></span></button>
+    <span class="sep"></span>
+    <button class="tb" id="b-react" aria-haspopup="true" aria-expanded="false"><span class="lbl"></span></button>
+    <button class="tb" id="b-hand"><span class="lbl"></span></button>
+    <button class="tb" id="b-chat"><span class="lbl"></span></button>
+    <button class="tb" id="b-more" aria-haspopup="true" aria-expanded="false"><span class="lbl"></span></button>
+    <span class="sep"></span>
+    <button class="tb leave" id="b-leave"><span class="lbl"></span></button>
+  </nav>
+  <aside id="chat" class="incall" aria-label="Chat" hidden>
+    <header>Chat<button id="chat-close" aria-label="Close chat"></button></header>
+    <p class="note">Only people in the call see these messages. Nothing is saved.</p>
+    <ol id="chat-list"></ol>
+    <form id="chat-form"><input id="chat-input" autocomplete="off" enterkeyhint="send" placeholder="Write a message"><button id="chat-send" aria-label="Send" disabled></button></form>
+  </aside>
+  <div id="reactions" class="popover" hidden></div>
+  <div id="more" class="popover" hidden></div>
+  <dialog id="devices-dialog">
+    <h2>Devices</h2>
+    <label class="field">Microphone<select data-kind="audioinput"></select></label>
+    <label class="field">Speaker<select data-kind="audiooutput"></select></label>
+    <label class="field">Camera<select data-kind="videoinput"></select></label>
+    <form method="dialog"><button class="primary">Done</button></form>
+  </dialog>
+
+  <!-- after leaving -->
+  <main class="ended endview">
+    <h2>You left the call</h2>
+    <button class="primary" id="rejoin">Join again</button>
+  </main>
+
+  <div id="floaters" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
