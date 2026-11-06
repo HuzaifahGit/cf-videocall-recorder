@@ -13,6 +13,19 @@ accounts, calendars, waiting rooms or moderation tools.
 > with, endorsed by or sponsored by Cloudflare, Google or any video-call vendor. Cloudflare and other product names are
 > trademarks of their owners and are used here only to describe compatibility.
 
+## Similar projects, and when to use which
+
+- **[Cloudflare Meet](https://github.com/cloudflare/meet)** (formerly Orange Meets), Cloudflare's own open-source video call
+  on Realtime SFU. More complete and maintained by Cloudflare. Use it if you want a full meeting app.
+- **[RealtimeKit](https://developers.cloudflare.com/realtime/)**, Cloudflare's managed SDKs, with recording, background effects
+  and transcription built in, billed by usage. Use it if you'd rather not run any of this yourself.
+- **This project** is for the narrower case of **recording calls into your own R2 bucket with each speaker on a separate
+  track** (useful for per-speaker transcription), in a small codebase you can read and change: plain JavaScript, one Worker,
+  one Durable Object class, no framework or database. It also writes down the problems met along the way (see "How it works"
+  below).
+
+It has been used mainly for two-person calls between a few devices; it is not tested at scale.
+
 ## Contents
 
 | Path | What it is |
