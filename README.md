@@ -1,4 +1,4 @@
-# cloudflare-videocall-recorder
+# cf-videocall-recorder
 
 A small, self-hosted video call that runs entirely on Cloudflare: **Realtime SFU** for the media, one **Worker** for the
 page and API, and a **Durable Object** per room. It has background blur and a touch-up filter that run in a Web Worker, screen
@@ -9,7 +9,7 @@ plus the shared-screen frames.
 Built for small calls (2–4 people) on a free or nearly free Cloudflare account. It is not a meeting product: there are no
 accounts, calendars, waiting rooms or moderation tools.
 
-> **An independent community project, not a Cloudflare product.** The name only says what it runs on. It is not affiliated
+> **An independent community project, not a Cloudflare product.** It is not affiliated
 > with, endorsed by or sponsored by Cloudflare, Google or any video-call vendor. Cloudflare and other product names are
 > trademarks of their owners and are used here only to describe compatibility.
 

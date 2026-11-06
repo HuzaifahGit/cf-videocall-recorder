@@ -1,6 +1,6 @@
 # One Worker: the call page (public/), the room API and the room itself (a Durable Object per room name).
 # Secrets (wrangler secret put NAME): RT_APP_ID, RT_APP_SECRET, ROOM_KEY; for recording also REC_KEY.
-name = "cloudflare-videocall-recorder"
+name = "cf-videocall-recorder"
 main = "src/worker.js"
 compatibility_date = "2026-10-01"
 

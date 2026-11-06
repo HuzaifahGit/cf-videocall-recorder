@@ -1,5 +1,5 @@
 {
-  "name": "cloudflare-videocall-recorder",
+  "name": "cf-videocall-recorder",
   "private": true,
   "description": "A small video call on Cloudflare Realtime SFU, Workers and Durable Objects, with background blur and optional recording to R2.",
   "license": "MIT",
